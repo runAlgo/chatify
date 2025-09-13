@@ -4,38 +4,46 @@ import bcrypt from "bcryptjs";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
+  const name = typeof fullName === "string" ? fullName.trim() : "";
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const pass = typeof password === "string" ? password : "";
 
   try {
-    if (!fullName || !email || !password) {
+    if (!name || !normalizedEmail || !pass) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    if (password.length < 6) {
+    if (pass.length < 6) {
       return res
         .status(400)
         .json({ message: "Password must be at leat 6 characters" });
     }
-    // Check if emails valid: regex
-    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
-    if (!emailRegex.test(email)) {
+    // Check if email is valid: regex
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
-    const user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "User already exist" });
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) return res.status(400).json({ message: "Email already exist" });
 
     // hash-password 123456 => 34$#545_fjd
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(pass, 10);
 
     const newUser = new User({
-      fullName,
-      email,
+      fullName: name,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
     if (newUser) {
-      generateToken(newUser._id, res);
-      await newUser.save();
+      // before Code Review:
+      //   generateToken(newUser._id, res);
+      //   await newUser.save();
+
+      // after Code Review:
+      // Persist user first, then issue auth cookie
+      const saveUser = await newUser.save();
+      generateToken(saveUser._id, res);
 
       res.status(201).json({
         _id: newUser._id,
