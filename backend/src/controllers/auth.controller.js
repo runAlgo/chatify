@@ -75,8 +75,50 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  res.send("login endpoint");
+  try {
+    const { email, password } = req.body;
+    if (!email?.trim() || !password?.trim()) {
+      return res.status(400).json({ message: "Email & password are required" });
+    }
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find user
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    //Create JWT token
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.error("Error in login controller:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
-export const logout = async (req, res) => {
-  res.send("logout endpoint");
+
+export const logout = (_, res) => {
+  try {
+    // Clear the cookie that holds your JWT
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: ENV.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/", // must match the path used on login
+    });
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
