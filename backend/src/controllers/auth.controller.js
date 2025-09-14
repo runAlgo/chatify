@@ -112,7 +112,7 @@ export const logout = (_, res) => {
     // Clear the cookie that holds your JWT
     res.clearCookie("jwt", {
       httpOnly: true,
-      secure: ENV.NODE_ENV === "production",
+      secure: ENV.NODE_ENV !== "development",
       sameSite: "strict",
       path: "/", // must match the path used on login
     });
